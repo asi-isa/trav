@@ -8,32 +8,30 @@ import (
 	"time"
 )
 
-type DirEntry struct {
-	Name  string
-	IsDir bool
-	Size  int64
-	Path  string
-	Date  time.Time
+type FileEntry struct {
+	Name string
+	Size int64
+	Path string
+	Date time.Time
 }
 
-func makeDirEntry(path string, fsDirEntry fs.DirEntry) DirEntry {
+func makeFileEntry(path string, fsDirEntry fs.DirEntry) FileEntry {
 	info, err := fsDirEntry.Info()
 	if err != nil {
 		log.Println("Error while extrating info from file", err)
 	}
 
-	return DirEntry{
-		Name:  fsDirEntry.Name(),
-		IsDir: fsDirEntry.IsDir(),
-		Size:  info.Size(),
-		Path:  path,
-		Date:  info.ModTime(),
+	return FileEntry{
+		Name: fsDirEntry.Name(),
+		Size: info.Size(),
+		Path: path,
+		Date: info.ModTime(),
 	}
 }
 
 type Trav struct {
 	wg  sync.WaitGroup
-	ch  chan DirEntry
+	ch  chan FileEntry
 	clb func(string, fs.DirEntry)
 }
 
@@ -41,13 +39,13 @@ func New() *Trav {
 	return &Trav{}
 }
 
-func (t *Trav) Traverse(root string, where func(DirEntry) bool) <-chan DirEntry {
-	t.ch = make(chan DirEntry)
+func (t *Trav) Traverse(root string, where func(FileEntry) bool) <-chan FileEntry {
+	t.ch = make(chan FileEntry)
 
 	t.clb = func(path string, fsentry fs.DirEntry) {
 		defer t.wg.Done()
 
-		entry := makeDirEntry(path, fsentry)
+		entry := makeFileEntry(path, fsentry)
 
 		if where(entry) {
 			t.ch <- entry

@@ -37,10 +37,12 @@ type Trav struct {
 	clb func(DirEntry)
 }
 
+func Make() Trav {
+	return Trav{ch: make(chan DirEntry)}
+}
+
 // TODO use predicate to determine, whether the entry should be sent to the channel
 func (t *Trav) Traverse(root string, where func(DirEntry) bool) <-chan DirEntry {
-	t.ch = make(chan DirEntry)
-
 	t.clb = func(entry DirEntry) {
 		defer t.wg.Done()
 

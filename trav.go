@@ -37,7 +37,7 @@ type Trav struct {
 	clb func(string, fs.DirEntry)
 }
 
-func (t *Trav) New() *Trav {
+func New() *Trav {
 	return &Trav{}
 }
 

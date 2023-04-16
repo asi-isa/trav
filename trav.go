@@ -17,12 +17,12 @@ func New[T any](root string) Trav[T] {
 }
 
 // Traverse traverses concurrently the file tree rooted at root, calling fn for each file in the tree and onEnd after every file and directory has been traversed.
-func (t *Trav[T]) Traverse(fn func(entry fs.DirEntry) (T, bool)) <-chan T {
+func (t *Trav[T]) Traverse(fn func(path string, entry fs.DirEntry) (T, bool)) <-chan T {
 
-	clb := func(entry fs.DirEntry) {
+	clb := func(path string, entry fs.DirEntry) {
 		defer t.wg.Done()
 
-		val, ok := fn(entry)
+		val, ok := fn(path, entry)
 
 		if ok {
 			t.ch <- val
@@ -39,7 +39,7 @@ func (t *Trav[T]) Traverse(fn func(entry fs.DirEntry) (T, bool)) <-chan T {
 	return t.ch
 }
 
-func (t *Trav[T]) traverse(path string, fn func(entry fs.DirEntry)) {
+func (t *Trav[T]) traverse(path string, fn func(path string, entry fs.DirEntry)) {
 	dirEntries, err := os.ReadDir(path)
 
 	if err == nil {
@@ -48,7 +48,7 @@ func (t *Trav[T]) traverse(path string, fn func(entry fs.DirEntry)) {
 				t.traverse(path+"/"+entry.Name(), fn)
 			} else {
 				t.wg.Add(1)
-				go fn(entry)
+				go fn(path, entry)
 			}
 		}
 	}

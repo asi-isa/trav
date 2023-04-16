@@ -34,7 +34,7 @@ func makeDirEntry(path string, fsDirEntry fs.DirEntry) DirEntry {
 type Trav struct {
 	wg  sync.WaitGroup
 	ch  chan DirEntry
-	clb func(DirEntry)
+	clb func(string, fs.DirEntry)
 }
 
 func Make() Trav {
@@ -43,8 +43,10 @@ func Make() Trav {
 
 // TODO use predicate to determine, whether the entry should be sent to the channel
 func (t *Trav) Traverse(root string, where func(DirEntry) bool) <-chan DirEntry {
-	t.clb = func(entry DirEntry) {
+	t.clb = func(path string, fsentry fs.DirEntry) {
 		defer t.wg.Done()
+
+		entry := makeDirEntry(path, fsentry)
 
 		if where(entry) {
 			t.ch <- entry
@@ -70,7 +72,7 @@ func (t *Trav) traverse(path string) {
 				t.traverse(path + "/" + entry.Name())
 			} else {
 				t.wg.Add(1)
-				go t.clb(makeDirEntry(path, entry))
+				go t.clb(path, entry)
 			}
 		}
 	}

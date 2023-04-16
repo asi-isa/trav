@@ -12,6 +12,10 @@ type Trav[T any] struct {
 	root string
 }
 
+func New[T any](root string) Trav[T] {
+	return Trav[T]{ch: make(chan T), root: root}
+}
+
 // Traverse traverses concurrently the file tree rooted at root, calling fn for each file in the tree and onEnd after every file and directory has been traversed.
 func (t *Trav[T]) Traverse(fn func(path string, entry fs.DirEntry) (T, bool)) <-chan T {
 

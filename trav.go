@@ -2,30 +2,50 @@ package trav
 
 import (
 	"io/fs"
+	"log"
 	"os"
 	"sync"
+	"time"
 )
 
-type Trav[T any] struct {
-	wg   sync.WaitGroup
-	ch   chan T
-	root string
+type DirEntry struct {
+	Name  string
+	IsDir bool
+	Size  int64
+	Path  string
+	Date  time.Time
 }
 
-func New[T any](root string) Trav[T] {
-	return Trav[T]{ch: make(chan T), root: root}
+func makeDirEntry(path string, fsDirEntry fs.DirEntry) DirEntry {
+	info, err := fsDirEntry.Info()
+	if err != nil {
+		log.Println("Error while extrating info from file", err)
+	}
+
+	return DirEntry{
+		Name:  fsDirEntry.Name(),
+		IsDir: fsDirEntry.IsDir(),
+		Size:  info.Size(),
+		Path:  path,
+		Date:  info.ModTime(),
+	}
 }
 
-// Traverse traverses concurrently the file tree rooted at root, calling fn for each file in the tree and onEnd after every file and directory has been traversed.
-func (t *Trav[T]) Traverse(fn func(path string, entry fs.DirEntry) (T, bool)) <-chan T {
+type Trav struct {
+	wg  sync.WaitGroup
+	ch  chan DirEntry
+	clb func(DirEntry)
+}
 
-	clb := func(path string, entry fs.DirEntry) {
+// TODO use predicate to determine, whether the entry should be sent to the channel
+func (t *Trav) Traverse(root string, where func(DirEntry) bool) <-chan DirEntry {
+	t.ch = make(chan DirEntry)
+
+	t.clb = func(entry DirEntry) {
 		defer t.wg.Done()
 
-		val, ok := fn(path, entry)
-
-		if ok {
-			t.ch <- val
+		if where(entry) {
+			t.ch <- entry
 		}
 	}
 
@@ -33,22 +53,22 @@ func (t *Trav[T]) Traverse(fn func(path string, entry fs.DirEntry) (T, bool)) <-
 		defer close(t.ch)
 		defer t.wg.Wait()
 
-		t.traverse(t.root, clb)
+		t.traverse(root)
 	}()
 
 	return t.ch
 }
 
-func (t *Trav[T]) traverse(path string, fn func(path string, entry fs.DirEntry)) {
+func (t *Trav) traverse(path string) {
 	dirEntries, err := os.ReadDir(path)
 
 	if err == nil {
 		for _, entry := range dirEntries {
 			if entry.IsDir() {
-				t.traverse(path+"/"+entry.Name(), fn)
+				t.traverse(path + "/" + entry.Name())
 			} else {
 				t.wg.Add(1)
-				go fn(path, entry)
+				go t.clb(makeDirEntry(path, entry))
 			}
 		}
 	}

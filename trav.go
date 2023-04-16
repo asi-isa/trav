@@ -7,12 +7,13 @@ import (
 )
 
 type Trav[T any] struct {
-	wg sync.WaitGroup
-	ch chan T
+	wg   sync.WaitGroup
+	ch   chan T
+	root string
 }
 
 // Traverse traverses concurrently the file tree rooted at root, calling fn for each file in the tree and onEnd after every file and directory has been traversed.
-func (t *Trav[T]) Traverse(root string, fn func(path string, entry fs.DirEntry) (T, bool), onEnd func()) <-chan T {
+func (t *Trav[T]) Traverse(fn func(path string, entry fs.DirEntry) (T, bool)) <-chan T {
 
 	clb := func(path string, entry fs.DirEntry) {
 		defer t.wg.Done()
@@ -25,10 +26,10 @@ func (t *Trav[T]) Traverse(root string, fn func(path string, entry fs.DirEntry) 
 	}
 
 	go func() {
-		defer onEnd()
+		defer close(t.ch)
 		defer t.wg.Wait()
 
-		t.traverse(root, clb)
+		t.traverse(t.root, clb)
 	}()
 
 	return t.ch

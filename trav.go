@@ -32,13 +32,13 @@ func makeDirEntry(path string, fsDirEntry fs.DirEntry) DirEntry {
 }
 
 type Trav struct {
-	wg  *sync.WaitGroup
+	wg  sync.WaitGroup
 	ch  chan DirEntry
 	clb func(string, fs.DirEntry)
 }
 
-func (t Trav) Make() Trav {
-	return Trav{}
+func (t *Trav) New() *Trav {
+	return &Trav{}
 }
 
 func (t *Trav) Traverse(root string, where func(DirEntry) bool) <-chan DirEntry {
